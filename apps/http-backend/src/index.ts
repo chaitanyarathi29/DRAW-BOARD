@@ -34,7 +34,15 @@ app.post('/signup', (req: Request, res: Response) => {
 
 app.post('/signin',(req: Request, res: Response) => {
 
-    const {username, password} = req.body;
+    const result = SigninSchema.safeParse(req.body);
+
+    if(!result.success){
+        return res.status(403).json({
+            message: "Invalid inputs"
+        })
+    }
+
+    const {username, password} = result.data;
 
     const token = jwt.sign(username, JWT_SECRET);
 
