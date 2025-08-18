@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "exports": {
-    "./types": "./src/types.ts"
+    "./types": {
+      "import": "./dist/types.js",
+      "require": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b",
+    "dev": "tsc -w"
+
   },
   "keywords": [],
   "author": "",

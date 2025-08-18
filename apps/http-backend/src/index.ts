@@ -1,13 +1,14 @@
 import express, { Request, Response } from "express";
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from "@repo/backend-common/config";
 import { CreateRoomSchema, CreateUserSchema, SigninSchema } from "@repo/common/types";
-import { middleware } from "./middleware";
+import { middleware } from "./middleware.js";
 import bcrypt from 'bcrypt';
 import { prismaClient } from "@repo/db/prisma";
+import dotenv from 'dotenv'
 
 
 const app = express();
+dotenv.config();
 
 app.use(express.json());
 
@@ -22,6 +23,7 @@ app.post('/signup', async (req: Request, res: Response) => {
     const result = CreateUserSchema.safeParse(req.body);
 
     if(!result.success){
+        console.log(result.error);
         return res.status(403).json({
             message: "Invalid inputs"
         })
@@ -32,26 +34,33 @@ app.post('/signup', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-        const user = prismaClient.user.create({
+        const user = await prismaClient.user.create({
             data: {
                 email: username,
                 password: hashedPassword,
                 name: name
             }
         })
+        const jwtSecret = process.env.JWT_SECRET;
+        if(!jwtSecret){
+            return res.status(403).json({
+                message: "Unauthorized"
+            });
+        }
+
+        const token = jwt.sign(username, jwtSecret);
+
+        res.status(201).json({ 
+            user: user,
+            message: "User created successfully",
+            token: token    
+        });
         
     } catch (error) {
         return res.status(411).json({
             message: "User with email already exists"
         })
     }
-    
-    const token = jwt.sign(username, JWT_SECRET);
-
-    res.status(201).json({ 
-        message: "User created successfully",
-        token: token    
-    });
     
 })
 
@@ -75,8 +84,8 @@ app.post('/signin',async (req: Request, res: Response) => {
     });
 
     if(!user){
-        return res.status(404).json({
-            message: "User not found"
+        return res.status(403).json({
+            message: "Unauthorized"
         })
     }
 
@@ -87,8 +96,14 @@ app.post('/signin',async (req: Request, res: Response) => {
             message: "Unauthorized"
         })
     }
+    const jwtSecret = process.env.JWT_SECRET;
+        if(!jwtSecret){
+            return res.status(403).json({
+                message: "Unauthorized"
+            });
+        }
 
-    const token = jwt.sign(username, JWT_SECRET);
+    const token = jwt.sign(username, jwtSecret);
 
     return res.status(201).json({ 
         message: "User logged in successfully",
@@ -96,13 +111,51 @@ app.post('/signin',async (req: Request, res: Response) => {
     });
 });
 
-app.post('/room', middleware, (req: Request, res: Response) => {
+app.post('/room', middleware, async(req: Request, res: Response) => {
+    const result = CreateRoomSchema.safeParse(req.body);
+    if(!result.success){
+        res.json({
+            message: "Incorrect Inputs"
+        })
+        return;
+    }
+
+    const username = req.username;
+
+    const user = await prismaClient.user.findUnique({
+        where: {
+            email: username
+        }
+    });
+
+    if(!user){
+        return res.status(403).json({
+            message: "Unauthorized"
+        })
+    }
+
+    try {
+        const room = await prismaClient.room.create({
+        data: {
+            slug: result.data.name,
+            adminId: user.id
+        }
+        })
+
+        return res.json({
+            room: room,
+            message: "room created"
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(411).json({
+            message: "room already exists"
+        })
+    }
 
 });
 
 
 app.listen(PORT,() => {
-
     console.log(`server started at ${PORT}`);
-
 })

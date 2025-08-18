@@ -1,8 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { JWT_SECRET } from "@repo/backend-common/config";
+import dotenv from 'dotenv';
 
-export const middleware = (req: Request, res: Response, next: NextFunction) => {
+dotenv.config();
+
+export const middleware = async(req: Request, res: Response, next: NextFunction) => {
     const token = req.headers['authorization'];
 
     if(!token){
@@ -10,13 +12,20 @@ export const middleware = (req: Request, res: Response, next: NextFunction) => {
             message: "Unauthorized"
         })
     }
+    const jwtSecret = process.env.JWT_SECRET;
+    if(!jwtSecret){
+        return res.status(403).json({
+            message: "Unauthorized"
+        });
+    }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const decoded = jwt.verify(token, jwtSecret) as string;
 
     if(decoded){
-        req.username = decoded.username;
+        console.log(decoded);
+        req.username = decoded;
     } else{
-        res.status(403).json({
+        return res.status(403).json({
             message: "Unauthorized"
         })
     }
