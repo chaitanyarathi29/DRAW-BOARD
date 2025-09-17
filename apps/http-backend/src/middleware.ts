@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -23,7 +23,7 @@ export const middleware = async(req: Request, res: Response, next: NextFunction)
 
     if(decoded){
         console.log(decoded);
-        req.username = decoded;
+        req.userId = decoded;
     } else{
         return res.status(403).json({
             message: "Unauthorized"

@@ -48,7 +48,7 @@ app.post('/signup', async (req: Request, res: Response) => {
             });
         }
 
-        const token = jwt.sign(username, jwtSecret);
+        const token = jwt.sign(user.id, jwtSecret);
 
         res.status(201).json({ 
             user: user,
@@ -103,7 +103,7 @@ app.post('/signin',async (req: Request, res: Response) => {
             });
         }
 
-    const token = jwt.sign(username, jwtSecret);
+    const token = jwt.sign(user.id, jwtSecret);
 
     return res.status(201).json({ 
         message: "User logged in successfully",
@@ -112,6 +112,7 @@ app.post('/signin',async (req: Request, res: Response) => {
 });
 
 app.post('/room', middleware, async(req: Request, res: Response) => {
+    
     const result = CreateRoomSchema.safeParse(req.body);
     if(!result.success){
         res.json({
@@ -120,15 +121,9 @@ app.post('/room', middleware, async(req: Request, res: Response) => {
         return;
     }
 
-    const username = req.username;
+    const userId = req.userId;
 
-    const user = await prismaClient.user.findUnique({
-        where: {
-            email: username
-        }
-    });
-
-    if(!user){
+    if(!userId){
         return res.status(403).json({
             message: "Unauthorized"
         })
@@ -136,10 +131,10 @@ app.post('/room', middleware, async(req: Request, res: Response) => {
 
     try {
         const room = await prismaClient.room.create({
-        data: {
-            slug: result.data.name,
-            adminId: user.id
-        }
+            data: {
+                slug: result.data.name,
+                adminId: userId
+            }
         })
 
         return res.json({
@@ -155,6 +150,43 @@ app.post('/room', middleware, async(req: Request, res: Response) => {
 
 });
 
+app.get("/chats/:roomId", async (req, res) => {
+    try {
+        const roomId = Number(req.params.roomId);
+        console.log(req.params.roomId);
+        const messages = await prismaClient.chat.findMany({
+            where: {
+                roomId: roomId
+            },
+            orderBy: {
+                id: "desc"
+            },
+            take: 50
+        });
+
+        res.json({
+            messages
+        })
+    } catch(error) {
+        console.log(error);
+        res.json({
+            messages: []
+        })
+    }
+})
+
+app.get("/room/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    const room = await prismaClient.room.findFirst({
+        where: {
+            slug
+        }
+    });
+
+    res.json({
+        room
+    })
+})
 
 app.listen(PORT,() => {
     console.log(`server started at ${PORT}`);
